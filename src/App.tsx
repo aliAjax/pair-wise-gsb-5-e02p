@@ -1,6 +1,154 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import {useEffect, useMemo, useState} from 'react';
+import {ChevronDown, ClipboardList, FileText, Inbox, Layers3, Plus, RotateCcw, ShieldCheck, Sparkles} from 'lucide-react';
+import type {Dependency, LensState} from './domain/types';
+import {isHolding, todosOf} from './domain/obligations';
+import {addDependency, applyDepUpdate, assignObligation, assignToNewMaterial, changeFulfillment, updateMaterial} from './domain/changes';
+import {loadState, resetState, saveState} from './storage/store';
+import DepsPage from './pages/DepsPage';
+import MaterialsPage from './pages/MaterialsPage';
+import HoldingPage from './pages/HoldingPage';
+import TodosPage from './pages/TodosPage';
+import AssignModal from './components/AssignModal';
+import {AddDepModal, UpdateDepModal} from './components/DepModals';
+
+type View = 'deps' | 'materials' | 'holding' | 'todos';
+
+const VIEW_META: Record<View, {crumb: string; title: string; desc: string}> = {
+  deps: {crumb: 'OBLIGATIONS', title: '许可证义务编排', desc: '按依赖逐项确认署名、源码交付与修改披露，随包或外链都有去向。'},
+  materials: {crumb: 'MATERIALS', title: '义务材料清单', desc: '同一义务跨多个依赖合并出一份材料，引用关系逐项可追。'},
+  holding: {crumb: 'HOLDING', title: '暂缓区', desc: '缺正文或缺认领人的材料停在这里，写明缺口，补齐后自动回到清单。'},
+  todos: {crumb: 'TODOS & CHANGES', title: '待办与变更', desc: '升级与换证只让原指派失效，其余材料沿用；待办与变更原因在此留痕。'},
+};
+
+export default function App() {
+  const [state, setState] = useState<LensState>(loadState);
+  const [view, setView] = useState<View>('deps');
+  const [selectedDep, setSelectedDep] = useState<string | null>(null);
+  const [assignId, setAssignId] = useState<string | null>(null);
+  const [updateDepId, setUpdateDepId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [highlightMaterial, setHighlightMaterial] = useState<string | null>(null);
+
+  useEffect(() => saveState(state), [state]);
+
+  const todos = useMemo(() => todosOf(state), [state]);
+  const holdingCount = state.materials.filter(isHolding).length;
+  const assignedCount = state.obligations.filter(o => o.state === 'assigned').length;
+  const invalidatedCount = state.obligations.filter(o => o.state === 'invalidated').length;
+
+  const openMaterial = (materialId: string) => {
+    const m = state.materials.find(mm => mm.id === materialId);
+    if (!m) return;
+    setView(isHolding(m) ? 'holding' : 'materials');
+    setHighlightMaterial(materialId);
+    window.setTimeout(() => setHighlightMaterial(cur => (cur === materialId ? null : cur)), 2400);
+  };
+  const openDep = (depId: string) => {
+    setSelectedDep(depId);
+    setView('deps');
+  };
+
+  const assignOb = assignId ? state.obligations.find(o => o.id === assignId) : undefined;
+  const updateDep: Dependency | undefined = updateDepId ? state.deps.find(d => d.id === updateDepId) : undefined;
+  const meta = VIEW_META[view];
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon"><ShieldCheck size={18}/></div>
+          <div><b>License Lens</b><small>obligation console</small></div>
+        </div>
+        <div className="nav-title">CONSOLE</div>
+        <button className={view === 'deps' ? 'nav active' : 'nav'} onClick={() => setView('deps')}><Layers3 size={16}/>依赖清单</button>
+        <button className={view === 'materials' ? 'nav active' : 'nav'} onClick={() => setView('materials')}>
+          义务材料 <span>{state.materials.length - holdingCount}</span>
+        </button>
+        <button className={view === 'holding' ? 'nav active' : 'nav'} onClick={() => setView('holding')}>
+          <Inbox size={16}/>暂缓区 {holdingCount > 0 && <span className="orange">{holdingCount}</span>}
+        </button>
+        <button className={view === 'todos' ? 'nav active' : 'nav'} onClick={() => setView('todos')}>
+          <ClipboardList size={16}/>待办与变更 {todos.length > 0 && <span className="red">{todos.length}</span>}
+        </button>
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <Sparkles size={16}/>
+            <div><b>本地已保存</b><small>重开后待办与变更原因保留</small></div>
+          </div>
+          <button className="reset" onClick={() => { setState(resetState()); setSelectedDep(null); }}>
+            <RotateCcw size={12}/>重置演示数据
+          </button>
+          <div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <div className="crumb">LICENSE LENS / <b>{meta.crumb}</b></div>
+            <h1>{meta.title}</h1>
+            <p>{meta.desc}</p>
+          </div>
+          <div className="head-actions">
+            <button className="primary" onClick={() => setShowAdd(true)}><Plus size={16}/>添加依赖</button>
+          </div>
+        </header>
+        <section className="summary">
+          <div><span>依赖总数</span><b>{state.deps.length}</b><small>{assignedCount}/{state.obligations.length} 项义务已指派</small></div>
+          <div><span>义务材料</span><b className="teal">{state.materials.length - holdingCount}</b><small>暂缓区 {holdingCount} 份</small></div>
+          <div><span>待办事项</span><b className="orange">{todos.length}</b><small>含失效指派 {invalidatedCount} 项</small></div>
+          <div><span>变更留痕</span><b>{state.events.length}</b><small>升级与换证原因可查</small></div>
+        </section>
+        {view === 'deps' && (
+          <DepsPage
+            state={state}
+            selectedId={selectedDep}
+            onSelect={setSelectedDep}
+            onAssign={setAssignId}
+            onUpdateDep={d => setUpdateDepId(d.id)}
+            onOpenMaterial={openMaterial}
+            onFulfillment={(id, f) => setState(s => changeFulfillment(s, id, f))}
+          />
+        )}
+        {view === 'materials' && (
+          <MaterialsPage state={state} highlightId={highlightMaterial} onOpenDep={openDep} onSave={(id, patch) => setState(s => updateMaterial(s, id, patch))}/>
+        )}
+        {view === 'holding' && (
+          <HoldingPage state={state} highlightId={highlightMaterial} onOpenDep={openDep} onSave={(id, patch) => setState(s => updateMaterial(s, id, patch))}/>
+        )}
+        {view === 'todos' && (
+          <TodosPage state={state} todos={todos} onAssign={setAssignId} onGoHolding={openMaterial}/>
+        )}
+      </main>
+      {showAdd && (
+        <AddDepModal
+          onClose={() => setShowAdd(false)}
+          onAdd={input => {
+            const next = addDependency(state, input);
+            setState(next);
+            setSelectedDep(next.deps[next.deps.length - 1]?.id ?? null);
+            setView('deps');
+            setShowAdd(false);
+          }}
+        />
+      )}
+      {updateDep && (
+        <UpdateDepModal
+          dep={updateDep}
+          onClose={() => setUpdateDepId(null)}
+          onUpdate={patch => { setState(s => applyDepUpdate(s, updateDep.id, patch)); setUpdateDepId(null); }}
+        />
+      )}
+      {assignOb && (
+        <AssignModal
+          obligation={assignOb}
+          dep={state.deps.find(d => d.id === assignOb.depId)}
+          materials={state.materials}
+          obligations={state.obligations}
+          onClose={() => setAssignId(null)}
+          onAssign={mid => { setState(s => assignObligation(s, assignOb.id, mid)); setAssignId(null); }}
+          onAssignNew={title => { setState(s => assignToNewMaterial(s, assignOb.id, title)); setAssignId(null); }}
+        />
+      )}
+    </div>
+  );
+}
